@@ -9,6 +9,8 @@ from .planner import Planner
 from .patcher import build_change, apply_change
 from .verify import run_tests
 from .generator import PatchGenerator
+from .dependencies import build_dependency_graph
+from .security import scan_security
 from .scanner import scan_repository
 from .search import search_text
 
@@ -39,6 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("goal")
     generate.add_argument("--path", default=".")
     generate.add_argument("--apply", action="store_true", help="Apply generated patches after preview.")
+
+    deps = sub.add_parser("deps", help="Show local Python dependency edges.")
+    deps.add_argument("--path", default=".")
+
+    security = sub.add_parser("security", help="Run lightweight security checks.")
+    security.add_argument("--path", default=".")
 
     verify = sub.add_parser("verify", help="Run the repository test suite.")
     verify.add_argument("--path", default=".")
@@ -90,6 +98,17 @@ def main() -> int:
                 apply_change(args.path, change, approved=True)
                 print(f"Applied: {patch.path}")
         return 0
+
+    if args.command == "deps":
+        repo = scan_repository(Path(args.path))
+        for dep in build_dependency_graph(args.path, repo): print(f"{dep.source} -> {dep.target} [{dep.kind}]")
+        return 0
+
+    if args.command == "security":
+        repo = scan_repository(Path(args.path))
+        findings = scan_security(args.path, repo)
+        for f in findings: print(f"{f.severity.upper()}: {f.path}:{f.line}: {f.message} [{f.rule}]")
+        return 1 if findings else 0
 
     if args.command == "verify":
         result = run_tests(args.path)
