@@ -1,18 +1,18 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RepoPilot</title><style>
-body{font-family:system-ui;margin:0;background:#0b1020;color:#e8ecf5}main{max-width:1000px;margin:auto;padding:40px}
-.card{background:#131a2e;border:1px solid #27314d;border-radius:16px;padding:22px;margin:16px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-code{background:#0a0f1c;padding:3px 6px;border-radius:6px}h1{font-size:42px;margin-bottom:6px}
-</style></head><body><main>
-<h1>RepoPilot</h1><p>AI coding agent — understand, plan, patch, verify.</p>
-<div class="grid">
-<div class="card"><h3>Repository</h3><p>Scan files and build code intelligence.</p></div>
-<div class="card"><h3>AI Plan</h3><p>Generate implementation steps with risks.</p></div>
-<div class="card"><h3>Safe Patch</h3><p>Review unified diffs before applying changes.</p></div>
-<div class="card"><h3>GitHub</h3><p>Prepare issue-driven fixes and pull requests.</p></div>
-</div>
-<div class="card"><h2>CLI</h2><code>repopilot scan .</code><br><code>repopilot plan "fix authentication"</code><br><code>repopilot security</code><br><code>repopilot fix-issue 12 --repo owner/project</code></div>
-</main></body></html>
+<title>RepoPilot Dashboard</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{font-family:Inter,system-ui;margin:0;background:#080b12;color:#e8ecf5}main{max-width:1120px;margin:auto;padding:32px}.top{display:flex;justify-content:space-between;align-items:center;gap:20px}.muted{color:#8993a8}.btn{background:#e8ecf5;color:#080b12;border:0;border-radius:10px;padding:10px 15px;font-weight:700;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:24px 0}.card{background:#111725;border:1px solid #202a3d;border-radius:14px;padding:18px}.value{font-size:28px;font-weight:800;margin-top:8px}.panel{background:#111725;border:1px solid #202a3d;border-radius:14px;padding:22px;margin-top:16px}.status{display:inline-flex;gap:8px;align-items:center}.dot{width:9px;height:9px;border-radius:50%;background:#5ee69b}pre{white-space:pre-wrap;color:#b9c4d9}@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
+</style></head>
+<body><main>
+<div class="top"><div><h1>RepoPilot</h1><p class="muted">AI coding agent · repository intelligence · safe changes</p></div><button class="btn" onclick="load()">Refresh analysis</button></div>
+<div class="panel"><div class="status"><span class="dot"></span><span id="status">Connecting to local API…</span></div></div>
+<section class="grid">
+<div class="card"><div class="muted">Files</div><div class="value" id="files">—</div></div><div class="card"><div class="muted">Languages</div><div class="value" id="languages">—</div></div><div class="card"><div class="muted">Python symbols</div><div class="value" id="symbols">—</div></div><div class="card"><div class="muted">Dependencies</div><div class="value" id="dependencies">—</div></div><div class="card"><div class="muted">Security findings</div><div class="value" id="security_findings">—</div></div>
+</section>
+<div class="panel"><h2>Workflow</h2><pre>Issue → Analyze → Plan → Diff → Approve → Test → Commit → Push → PR</pre></div>
+<script>
+async function load(){try{const r=await fetch("http://127.0.0.1:8765/analyze");if(!r.ok)throw new Error("API "+r.status);const d=await r.json();for(const k of ["files","languages","symbols","dependencies","security_findings"])document.getElementById(k).textContent=Array.isArray(d[k])?d[k].join(", "):d[k];document.getElementById("status").textContent="Local RepoPilot API connected";}catch(e){document.getElementById("status").textContent="Start: repopilot serve --port 8765";}}
+load();
+</script></main></body></html>
