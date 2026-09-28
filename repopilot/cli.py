@@ -14,6 +14,8 @@ from .ast_index import index_python_ast
 from .semantic import rank_context
 from .security import scan_security
 from .scanner import scan_repository
+from .memory import ProjectMemory
+from .report import report_markdown
 from .github_flow import GitHubClient
 from .workflow import IssueWorkflow
 from .search import search_text
@@ -45,6 +47,15 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("goal")
     generate.add_argument("--path", default=".")
     generate.add_argument("--apply", action="store_true", help="Apply generated patches after preview.")
+
+    report_cmd = sub.add_parser("report", help="Write a Markdown project report.")
+    report_cmd.add_argument("--path", default=".")
+    report_cmd.add_argument("--output", default=".repopilot-report.md")
+
+    memory_cmd = sub.add_parser("memory", help="Store a project memory fact.")
+    memory_cmd.add_argument("key")
+    memory_cmd.add_argument("value")
+    memory_cmd.add_argument("--path", default=".repopilot-memory.json")
 
     fix_issue = sub.add_parser("fix-issue", help="Prepare a fix from a GitHub issue without applying it.")
     fix_issue.add_argument("issue", type=int)
@@ -113,6 +124,20 @@ def main() -> int:
             if args.apply:
                 apply_change(args.path, change, approved=True)
                 print(f"Applied: {patch.path}")
+        return 0
+
+    if args.command == "report":
+        repo = scan_repository(Path(args.path))
+        body = report_markdown("RepoPilot Report", {"Repository": f"{len(repo.files)} files indexed.", "Languages": ", ".join(sorted({f.language for f in repo.files}))})
+        Path(args.output).write_text(body, encoding="utf-8")
+        print(args.output)
+        return 0
+
+    if args.command == "memory":
+        memory = ProjectMemory.load(args.path)
+        memory.remember(args.key, args.value)
+        memory.save(args.path)
+        print(f"Saved memory: {args.key}")
         return 0
 
     if args.command == "fix-issue":
