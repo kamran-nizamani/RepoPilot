@@ -14,6 +14,8 @@ from .ast_index import index_python_ast
 from .semantic import rank_context
 from .security import scan_security
 from .scanner import scan_repository
+from .github_flow import GitHubClient
+from .workflow import IssueWorkflow
 from .search import search_text
 
 
@@ -43,6 +45,11 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("goal")
     generate.add_argument("--path", default=".")
     generate.add_argument("--apply", action="store_true", help="Apply generated patches after preview.")
+
+    fix_issue = sub.add_parser("fix-issue", help="Prepare a fix from a GitHub issue without applying it.")
+    fix_issue.add_argument("issue", type=int)
+    fix_issue.add_argument("--repo", required=True, help="GitHub owner/repository")
+    fix_issue.add_argument("--path", default=".")
 
     ast_cmd = sub.add_parser("ast", help="Index Python symbols using the AST.")
     ast_cmd.add_argument("--path", default=".")
@@ -106,6 +113,24 @@ def main() -> int:
             if args.apply:
                 apply_change(args.path, change, approved=True)
                 print(f"Applied: {patch.path}")
+        return 0
+
+    if args.command == "fix-issue":
+        import os
+        token = os.getenv("GITHUB_TOKEN")
+        if not token:
+            raise SystemExit("GITHUB_TOKEN is required for fix-issue.")
+        owner, repo_name = args.repo.split("/", 1)
+        repo_map = scan_repository(Path(args.path))
+        provider = create_provider(ModelConfig.from_env())
+        workflow = IssueWorkflow(GitHubClient(token), Planner(provider), PatchGenerator(provider))
+        result = workflow.prepare(owner, repo_name, args.issue, args.path, repo_map)
+        print(f"Issue #{result.issue.number}: {result.issue.title}")
+        print("\nPlan:\n" + "\n".join(f"- {step}" for step in result.plan.steps))
+        print("\nProposed changes:")
+        for change in result.changes:
+            print(change.diff() or f"No diff for {change.path}")
+        print("\nNo files were changed. Review the diff and apply explicitly with the patch workflow.")
         return 0
 
     if args.command == "ast":
