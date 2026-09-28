@@ -12,13 +12,13 @@ RepoPilot is designed around one principle: **AI proposes changes; humans approv
 - Detects common code/security issues
 - Generates a proposed patch
 - Shows a unified diff before changing files
-- Runs tests/commands through an explicit approval gate
+- Runs tests and Git actions through explicit approval gates
 - Supports local AI providers such as Ollama
-- Designed for GitHub workflows and future PR automation
+- End-to-end issue workflow with optional apply, verify, commit, push, and PR creation
 
 ## Status
 
-🚧 **v0.1 foundation** — repository understanding, local AI, planning, patch generation, approval-gated writes, and verification are implemented on the development branch.
+🚧 **v0.1 foundation** — repository intelligence, local AI, planning, patch generation, approval-gated execution, and GitHub issue-to-PR workflow foundations are implemented on the development branch.
 
 ## Quick start
 
@@ -104,10 +104,10 @@ Prepare an issue-driven fix without modifying files:
 
 ```bash
 export GITHUB_TOKEN=your_token
-repopilot fix-issue 12 --repo owner/project --path .
+repopilot fix-issue 12 --repo owner/project --path .\n\n# After reviewing the diff, explicitly approve the full workflow:\nrepopilot fix-issue 12 --repo owner/project --path . --branch fix/issue-12 --apply --verify --commit --push --create-pr
 ```
 
-The command reads the issue, creates an implementation plan, generates proposed changes, and prints diffs. It does **not** write files or merge a pull request automatically.
+By default the command is preview-only. `--apply` approves file changes; `--verify` runs tests; `--commit`, `--push`, and `--create-pr` enable later stages. No merge is performed automatically.
 
 ## Development workflow
 
