@@ -9,7 +9,6 @@ from .planner import Planner
 from .patcher import build_change, apply_change
 from .verify import run_tests
 from .generator import PatchGenerator
-from .patcher import build_change, apply_change
 from .scanner import scan_repository
 from .search import search_text
 
