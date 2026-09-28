@@ -94,6 +94,17 @@ REPOPILOT_BASE_URL=http://localhost:11434
 
 On Windows PowerShell, use `$env:REPOPILOT_PROVIDER="ollama"` and the equivalent variables. RepoPilot uses Ollama's local HTTP API, so no cloud API key is required.
 
+## GitHub issue workflow
+
+Prepare an issue-driven fix without modifying files:
+
+```bash
+export GITHUB_TOKEN=your_token
+repopilot fix-issue 12 --repo owner/project --path .
+```
+
+The command reads the issue, creates an implementation plan, generates proposed changes, and prints diffs. It does **not** write files or merge a pull request automatically.
+
 ## Development workflow
 
 1. `repopilot scan .` — understand the repository.
