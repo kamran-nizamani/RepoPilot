@@ -9,29 +9,19 @@ class GitHubIssue:
     body: str
 
 class GitHubClient:
-    """Small stdlib GitHub API client for issue/PR automation.
-
-    The client only prepares or creates resources when explicitly called.
-    Tokens are read from the environment and never logged.
-    """
-
+    """Small stdlib GitHub API client. Network actions are explicit at the caller."""
     def __init__(self, token: str, api_url: str = "https://api.github.com"):
         self.token = token
         self.api_url = api_url.rstrip("/")
 
     def _request(self, method: str, path: str, payload=None):
         data = json.dumps(payload).encode() if payload is not None else None
-        request = Request(
-            f"{self.api_url}{path}",
-            data=data,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {self.token}",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "Content-Type": "application/json",
-            },
-            method=method,
-        )
+        request = Request(f"{self.api_url}{path}", data=data, headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {self.token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+        }, method=method)
         with urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8"))
 
