@@ -78,7 +78,7 @@ MIT
 
 ## Current architecture
 
-RepoPilot now provides a public-repository scanner, ranked source-context retrieval, an AI debugging endpoint, unified-diff generation, and an approval-gated GitHub branch/PR workflow.
+RepoPilot now provides a public-repository scanner, ranked source-context retrieval, an Gemini-powered AI debugging endpoint, unified-diff generation, and an approval-gated GitHub branch/PR workflow.
 
 ### Safety
 
@@ -86,4 +86,4 @@ AI analysis is read-only by default. GitHub writes require a server-side `GITHUB
 
 ### Environment
 
-For AI diagnosis configure `AI_GATEWAY_API_KEY`. For approved GitHub changes configure `GITHUB_TOKEN` as a Vercel server environment variable. Never expose either secret in client-side code.
+For AI diagnosis configure `GEMINI_API_KEY`. For approved GitHub changes configure `GITHUB_TOKEN` as a Vercel server environment variable. Never expose either secret in client-side code.
