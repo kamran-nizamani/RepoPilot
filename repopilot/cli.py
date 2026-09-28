@@ -16,6 +16,8 @@ from .security import scan_security
 from .scanner import scan_repository
 from .memory import ProjectMemory
 from .report import report_markdown
+from .service import analyze_repository
+from .api import serve
 from .github_flow import GitHubClient
 from .workflow import IssueWorkflow
 from .search import search_text
@@ -47,6 +49,13 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("goal")
     generate.add_argument("--path", default=".")
     generate.add_argument("--apply", action="store_true", help="Apply generated patches after preview.")
+
+    api_cmd = sub.add_parser("serve", help="Start the local RepoPilot API.")
+    api_cmd.add_argument("--host", default="127.0.0.1")
+    api_cmd.add_argument("--port", type=int, default=8765)
+
+    analyze_cmd = sub.add_parser("analyze", help="Analyze repository intelligence.")
+    analyze_cmd.add_argument("--path", default=".")
 
     report_cmd = sub.add_parser("report", help="Write a Markdown project report.")
     report_cmd.add_argument("--path", default=".")
@@ -124,6 +133,14 @@ def main() -> int:
             if args.apply:
                 apply_change(args.path, change, approved=True)
                 print(f"Applied: {patch.path}")
+        return 0
+
+    if args.command == "serve":
+        serve(args.host, args.port)
+        return 0
+
+    if args.command == "analyze":
+        print(analyze_repository(args.path))
         return 0
 
     if args.command == "report":
