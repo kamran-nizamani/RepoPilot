@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repopilot"
+version = "0.1.0"
+description = "Open-source AI coding agent for understanding and safely improving codebases."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Kamran Khan Nizamani"}]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+repopilot = "repopilot.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["repopilot*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

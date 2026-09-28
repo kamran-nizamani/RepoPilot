@@ -1,0 +1,11 @@
+services:
+  repopilot:
+    build: .
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    environment:
+      REPOPILOT_PROVIDER: ${REPOPILOT_PROVIDER:-mock}
+      REPOPILOT_MODEL: ${REPOPILOT_MODEL:-llama3.2}
+      REPOPILOT_BASE_URL: ${REPOPILOT_BASE_URL:-http://host.docker.internal:11434}
+    entrypoint: ["repopilot"]

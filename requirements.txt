@@ -1,0 +1,3 @@
+# RepoPilot intentionally uses Python's standard library at runtime.
+# Optional development dependency:
+pytest>=8.0
