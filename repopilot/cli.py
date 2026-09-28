@@ -6,6 +6,8 @@ from .config import ModelConfig
 from .indexer import index_symbols
 from .providers_factory import create_provider
 from .planner import Planner
+from .patcher import build_change, apply_change
+from .verify import run_tests
 from .scanner import scan_repository
 from .search import search_text
 
@@ -31,6 +33,9 @@ def build_parser() -> argparse.ArgumentParser:
     plan = sub.add_parser("plan", help="Create a reviewable implementation plan.")
     plan.add_argument("goal")
     plan.add_argument("--path", default=".")
+
+    verify = sub.add_parser("verify", help="Run the repository test suite.")
+    verify.add_argument("--path", default=".")
 
     symbols = sub.add_parser("symbols", help="List indexed Python symbols.")
     symbols.add_argument("--path", default=".")
@@ -65,6 +70,11 @@ def main() -> int:
         print("\nRisks:")
         for risk in result.risks: print(f"  - {risk}")
         return 0
+
+    if args.command == "verify":
+        result = run_tests(args.path)
+        print(result.output)
+        return result.returncode
 
     if args.command == "symbols":
         repo = scan_repository(Path(args.path))
