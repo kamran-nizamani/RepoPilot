@@ -58,6 +58,10 @@ RepoPilot CLI
 
 RepoPilot does **not** silently edit a repository. File writes and command execution are explicit actions behind an approval gate.
 
+## Current capabilities
+
+RepoPilot currently provides repository scanning, ranked source retrieval, Python AST symbol indexing, dependency inspection, heuristic security findings, local Ollama support, implementation planning, structured patch generation, unified diffs, path traversal protection, explicit patch application, test verification, and a non-destructive GitHub issue workflow.
+
 ## Roadmap
 
 - [x] Repository scanner foundation
