@@ -8,6 +8,8 @@ from .providers_factory import create_provider
 from .planner import Planner
 from .patcher import build_change, apply_change
 from .verify import run_tests
+from .generator import PatchGenerator
+from .patcher import build_change, apply_change
 from .scanner import scan_repository
 from .search import search_text
 
@@ -33,6 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
     plan = sub.add_parser("plan", help="Create a reviewable implementation plan.")
     plan.add_argument("goal")
     plan.add_argument("--path", default=".")
+
+    generate = sub.add_parser("generate", help="Generate a patch proposal for a task.")
+    generate.add_argument("goal")
+    generate.add_argument("--path", default=".")
+    generate.add_argument("--apply", action="store_true", help="Apply generated patches after preview.")
 
     verify = sub.add_parser("verify", help="Run the repository test suite.")
     verify.add_argument("--path", default=".")
@@ -69,6 +76,20 @@ def main() -> int:
         for i, step in enumerate(result.steps, 1): print(f"  {i}. {step}")
         print("\nRisks:")
         for risk in result.risks: print(f"  - {risk}")
+        return 0
+
+    if args.command == "generate":
+        repo = scan_repository(Path(args.path))
+        patches = PatchGenerator(create_provider(ModelConfig.from_env())).generate(args.goal, args.path, repo)
+        if not patches:
+            print("No structured patches were generated.")
+            return 2
+        for patch in patches:
+            change = build_change(args.path, patch.path, patch.content)
+            print(change.diff())
+            if args.apply:
+                apply_change(args.path, change, approved=True)
+                print(f"Applied: {patch.path}")
         return 0
 
     if args.command == "verify":
