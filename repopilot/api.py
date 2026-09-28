@@ -108,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
                 result = []
                 for patch in patches:
                     change = build_change(root, patch.path, patch.content)
-                    result.append({"path": patch.path, "diff": unified_diff(change), "before": change.before, "after": change.after})
+                    result.append({"path": patch.path, "diff": change.diff(), "before": change.before, "after": change.after})
                 return self._send({"patches": result, "approval_required": True})
             if path == "/api/apply":
                 if body.get("approved") is not True: raise PermissionError("Explicit approval is required.")
