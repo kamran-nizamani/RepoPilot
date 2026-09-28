@@ -5,6 +5,7 @@ from .agent import RepoAgent
 from .config import ModelConfig
 from .indexer import index_symbols
 from .providers_factory import create_provider
+from .planner import Planner
 from .scanner import scan_repository
 from .search import search_text
 
@@ -26,6 +27,10 @@ def build_parser() -> argparse.ArgumentParser:
     search = sub.add_parser("search", help="Search repository source text.")
     search.add_argument("query")
     search.add_argument("--path", default=".")
+
+    plan = sub.add_parser("plan", help="Create a reviewable implementation plan.")
+    plan.add_argument("goal")
+    plan.add_argument("--path", default=".")
 
     symbols = sub.add_parser("symbols", help="List indexed Python symbols.")
     symbols.add_argument("--path", default=".")
@@ -50,6 +55,15 @@ def main() -> int:
         repo = scan_repository(Path(args.path))
         for path, line, text in search_text(args.path, repo, args.query):
             print(f"{path}:{line}: {text}")
+        return 0
+
+    if args.command == "plan":
+        repo = scan_repository(Path(args.path))
+        result = Planner(create_provider(ModelConfig.from_env())).create(args.goal, args.path, repo)
+        print(f"Goal: {result.goal}\n\nSteps:")
+        for i, step in enumerate(result.steps, 1): print(f"  {i}. {step}")
+        print("\nRisks:")
+        for risk in result.risks: print(f"  - {risk}")
         return 0
 
     if args.command == "symbols":
