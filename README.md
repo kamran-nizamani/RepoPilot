@@ -118,3 +118,28 @@ The command reads the issue, creates an implementation plan, generates proposed 
 5. `repopilot verify` — run the test suite.
 
 Generated patches are constrained to the repository root and are never applied unless the explicit `--apply` action is used.
+
+
+## Dashboard
+
+A lightweight static dashboard is available in `dashboard/index.html`. It is intentionally dependency-free; a future release can connect it to a FastAPI service.
+
+## Docker
+
+Build and run RepoPilot against the current repository:
+
+```bash
+docker compose run --rm repopilot scan .
+```
+
+For local Ollama, configure `REPOPILOT_PROVIDER=ollama` and the model/base URL in your environment.
+
+## Project memory
+
+RepoPilot can store small project facts locally:
+
+```bash
+repopilot memory framework "FastAPI"
+```
+
+The memory file is local and should not contain secrets.
