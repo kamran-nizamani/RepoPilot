@@ -2,8 +2,9 @@ import argparse
 from pathlib import Path
 
 from .agent import RepoAgent
+from .config import ModelConfig
 from .indexer import index_symbols
-from .providers import MockProvider
+from .providers_factory import create_provider
 from .scanner import scan_repository
 from .search import search_text
 
@@ -59,7 +60,7 @@ def main() -> int:
 
     if args.command == "ask":
         repo = scan_repository(Path(args.path))
-        response = RepoAgent(MockProvider()).ask(args.question, repo)
+        response = RepoAgent(create_provider(ModelConfig.from_env())).ask(args.question, repo)
         print(response)
         return 0
 
