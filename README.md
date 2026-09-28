@@ -18,7 +18,7 @@ RepoPilot is designed around one principle: **AI proposes changes; humans approv
 
 ## Status
 
-🚧 **v0.1 foundation** — repository intelligence, local AI, planning, patch generation, approval-gated execution, and GitHub issue-to-PR workflow foundations are implemented on the development branch.
+🚧 **v0.2 workspace foundation** — repository intelligence, local AI, planning, patch generation, an approval-gated local API/dashboard, and GitHub issue-to-PR workflow foundations are implemented on the development branch.
 
 ## Quick start
 
@@ -78,7 +78,7 @@ RepoPilot currently provides repository scanning, ranked source retrieval, Pytho
 - [ ] Test generation
 - [ ] Security/CWE analysis
 - [ ] GitHub PR automation
-- [ ] Web dashboard
+- [x] Web dashboard
 - [ ] MCP integration
 - [ ] Project memory
 
@@ -122,7 +122,23 @@ Generated patches are constrained to the repository root and are never applied u
 
 ## Dashboard
 
-A lightweight static dashboard is available in `dashboard/index.html`. It is intentionally dependency-free; a future release can connect it to a FastAPI service.
+The local dashboard is an AI workspace served by RepoPilot itself:
+
+```bash
+repopilot serve --port 8765
+```
+
+Open `http://127.0.0.1:8765/`. The workspace provides repository analysis, AI chat, implementation plans, generated diff previews, explicit apply approval, test execution, and Git status. It uses the local API and has no frontend dependency build step.
+
+For local AI, configure Ollama before starting the server:
+
+```text
+REPOPILOT_PROVIDER=ollama
+REPOPILOT_MODEL=llama3.2
+REPOPILOT_BASE_URL=http://localhost:11434
+```
+
+Mutating and network operations remain approval-gated; RepoPilot does not auto-merge pull requests.
 
 ## Docker
 
