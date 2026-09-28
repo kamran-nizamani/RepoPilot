@@ -19,6 +19,7 @@ from .report import report_markdown
 from .service import analyze_repository
 from .api import serve
 from .github_flow import GitHubClient
+from .gitflow import create_branch, run_git
 from .workflow import IssueWorkflow
 from .search import search_text
 
@@ -70,6 +71,15 @@ def build_parser() -> argparse.ArgumentParser:
     fix_issue.add_argument("issue", type=int)
     fix_issue.add_argument("--repo", required=True, help="GitHub owner/repository")
     fix_issue.add_argument("--path", default=".")
+    fix_issue.add_argument("--apply", action="store_true")
+    fix_issue.add_argument("--verify", action="store_true")
+    fix_issue.add_argument("--commit", action="store_true")
+    fix_issue.add_argument("--push", action="store_true")
+    fix_issue.add_argument("--branch")
+    fix_issue.add_argument("--commit-message")
+    fix_issue.add_argument("--create-pr", action="store_true")
+    fix_issue.add_argument("--base", default="main")
+    fix_issue.add_argument("--remote", default="origin")
 
     ast_cmd = sub.add_parser("ast", help="Index Python symbols using the AST.")
     ast_cmd.add_argument("--path", default=".")
@@ -172,7 +182,37 @@ def main() -> int:
         print("\nProposed changes:")
         for change in result.changes:
             print(change.diff() or f"No diff for {change.path}")
-        print("\nNo files were changed. Review the diff and apply explicitly with the patch workflow.")
+        if not args.apply:
+            print("\nPreview only. Re-run with --apply to approve modifications.")
+            return 0
+        if args.branch:
+            create_branch(args.path, args.branch, approved=True)
+        verification = workflow.apply_and_verify(result, args.path, approved=True, verify=args.verify)
+        if args.verify:
+            print(verification.output)
+            if verification.returncode != 0:
+                print("Verification failed; commit/push/PR skipped.")
+                return verification.returncode
+        if args.commit or args.push or args.create_pr:
+            if not args.commit:
+                print("--commit is required before --push/--create-pr.")
+                return 2
+            workflow.commit(args.path, args.commit_message or f"fix: resolve issue #{args.issue}", approved=True)
+        if args.push or args.create_pr:
+            if not args.push:
+                print("--push is required before --create-pr.")
+                return 2
+            workflow.push(args.path, args.remote, args.branch, approved=True)
+        if args.create_pr:
+            branch = args.branch or run_git(args.path, "branch", "--show-current", approved=True).output
+            pr = workflow.github.create_pull_request(
+                owner, repo_name, f"fix: #{args.issue} {result.issue.title}",
+                f"RepoPilot fix for issue #{args.issue}. Human-approved changes.\n\nVerification requested: {args.verify}.",
+                branch, args.base,
+            )
+            print(f"PR created: {pr.get('html_url', '')}")
+        else:
+            print("\nWorkflow completed.") 
         return 0
 
     if args.command == "ast":
