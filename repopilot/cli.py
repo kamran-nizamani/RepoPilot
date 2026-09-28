@@ -10,6 +10,8 @@ from .patcher import build_change, apply_change
 from .verify import run_tests
 from .generator import PatchGenerator
 from .dependencies import build_dependency_graph
+from .ast_index import index_python_ast
+from .semantic import rank_context
 from .security import scan_security
 from .scanner import scan_repository
 from .search import search_text
@@ -41,6 +43,13 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("goal")
     generate.add_argument("--path", default=".")
     generate.add_argument("--apply", action="store_true", help="Apply generated patches after preview.")
+
+    ast_cmd = sub.add_parser("ast", help="Index Python symbols using the AST.")
+    ast_cmd.add_argument("--path", default=".")
+
+    semantic = sub.add_parser("semantic", help="Rank files by lexical semantic similarity.")
+    semantic.add_argument("query")
+    semantic.add_argument("--path", default=".")
 
     deps = sub.add_parser("deps", help="Show local Python dependency edges.")
     deps.add_argument("--path", default=".")
@@ -97,6 +106,16 @@ def main() -> int:
             if args.apply:
                 apply_change(args.path, change, approved=True)
                 print(f"Applied: {patch.path}")
+        return 0
+
+    if args.command == "ast":
+        repo = scan_repository(Path(args.path))
+        for symbol in index_python_ast(args.path, repo): print(f"{symbol.path}:{symbol.line}: {symbol.kind} {symbol.name}")
+        return 0
+
+    if args.command == "semantic":
+        repo = scan_repository(Path(args.path))
+        for score, path in rank_context(args.path, repo, args.query): print(f"{score:.3f} {path}")
         return 0
 
     if args.command == "deps":
