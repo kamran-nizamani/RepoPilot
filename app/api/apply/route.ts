@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 export async function POST(req:Request){
  try{
-  const {repo,branch="repopilot/approved-change",base="main",files=[],message="chore: apply RepoPilot approved patch",createPr=true}=await req.json();
+  const {repo,branch="repopilot/approved-change",base="main",files=[],message="chore: apply RepoPilot approved patch",createPr=true,approved=false}=await req.json();
+  if(approved!==true) return NextResponse.json({error:"Explicit human approval is required before GitHub writes."},{status:403});
   if(!process.env.GITHUB_TOKEN) return NextResponse.json({error:"GitHub write access is not configured. Add GITHUB_TOKEN server-side before approving changes."},{status:503});
   if(!repo||!Array.isArray(files)||files.length===0) return NextResponse.json({error:"Approval payload is incomplete."},{status:400});
   const h={Authorization:`Bearer ${process.env.GITHUB_TOKEN}`,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"};
