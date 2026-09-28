@@ -74,3 +74,16 @@ RepoPilot does **not** silently edit a repository. File writes and command execu
 ## License
 
 MIT
+
+
+## Current architecture
+
+RepoPilot now provides a public-repository scanner, ranked source-context retrieval, an AI debugging endpoint, unified-diff generation, and an approval-gated GitHub branch/PR workflow.
+
+### Safety
+
+AI analysis is read-only by default. GitHub writes require a server-side `GITHUB_TOKEN` and an explicit approval request. RepoPilot never auto-merges a generated pull request.
+
+### Environment
+
+For AI diagnosis configure `AI_GATEWAY_API_KEY`. For approved GitHub changes configure `GITHUB_TOKEN` as a Vercel server environment variable. Never expose either secret in client-side code.
