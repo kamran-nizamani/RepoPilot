@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-const GEMINI_MODEL = "gemini-3.5-flash";
+const MODELS = ["gemini-3.5-flash", "gemini-3.5-flash-lite"] as const;
+const MAX_RETRIES = 2;
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -8,6 +9,42 @@ type GeminiResponse = {
   }>;
   error?: { message?: string; status?: string };
 };
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function generate(model: string, apiKey: string, body: object) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    const data = (await response.json()) as GeminiResponse;
+
+    if (response.ok) {
+      return { response, data };
+    }
+
+    const transient = response.status === 429 || response.status === 503 || response.status >= 500;
+    if (!transient || attempt === MAX_RETRIES) {
+      return { response, data };
+    }
+
+    // Google recommends exponential backoff for transient 429/5xx errors.
+    await sleep(1000 * 2 ** attempt + Math.floor(Math.random() * 500));
+  }
+
+  throw new Error("Gemini request failed after retries.");
+}
 
 export async function POST(req: Request) {
   try {
@@ -49,45 +86,47 @@ Keep mutations human-approved. Prefer minimal, reversible changes over broad ref
       "\n\nRepository evidence:\n" +
       context.slice(0, 50000);
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemInstruction }] },
-          contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-          generationConfig: { maxOutputTokens: 3000 },
-        }),
+    const requestBody = {
+      system_instruction: { parts: [{ text: systemInstruction }] },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: { maxOutputTokens: 3000 },
+    };
+
+    let lastMessage = "Gemini is temporarily unavailable.";
+
+    for (const model of MODELS) {
+      const { response, data } = await generate(model, apiKey, requestBody);
+
+      if (!response.ok) {
+        lastMessage = data.error?.message || `Gemini request failed with status ${response.status}.`;
+        continue;
       }
+
+      const text = data.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        .join("")
+        .trim();
+
+      if (!text) {
+        lastMessage = "Gemini returned an empty response.";
+        continue;
+      }
+
+      return NextResponse.json({
+        text,
+        model,
+        provider: "Google Gemini API",
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          "Gemini is temporarily busy. RepoPilot retried the primary model and switched to a fallback model, but both were unavailable. Please try again shortly.",
+        detail: lastMessage,
+      },
+      { status: 503 }
     );
-
-    const data = (await response.json()) as GeminiResponse;
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: data.error?.message || `Gemini API request failed with status ${response.status}.` },
-        { status: 502 }
-      );
-    }
-
-    const text = data.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text || "")
-      .join("")
-      .trim();
-
-    if (!text) {
-      return NextResponse.json({ error: "Gemini returned an empty response." }, { status: 502 });
-    }
-
-    return NextResponse.json({
-      text,
-      model: GEMINI_MODEL,
-      provider: "Google Gemini API",
-    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Gemini generation failed." },
