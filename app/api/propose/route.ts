@@ -38,6 +38,7 @@ export async function POST(req:Request){
     const body=await req.json();
     const question=String(body?.prompt||"").trim();
     const context=String(body?.context||"");
+    const focusPath=String(body?.focusPath||"").trim();
     if(!question) return NextResponse.json({error:"Enter a debugging question."},{status:400});
     const apiKey=process.env.GEMINI_API_KEY;
     if(!apiKey) return NextResponse.json({error:"Gemini is not configured. Add GEMINI_API_KEY to Vercel environment variables."},{status:503});
@@ -54,15 +55,17 @@ Return ONLY valid JSON, with this exact shape:
   ]
 }
 Rules:
+- If a focus file is supplied, inspect it first and use it when the evidence supports a concrete defect.
 - patches must contain ONLY files and exact oldText supported by the supplied evidence.
 - If evidence is insufficient for a safe exact patch, return an empty patches array and explain why in risks.
+- Prefer one concrete reproducible defect over a broad list of speculative concerns.
 - Keep changes minimal and reversible.
 - Never include secrets, tokens, passwords, or environment values.
 - Do not invent file contents.`;
 
     const requestBody={
       system_instruction:{parts:[{text:systemInstruction}]},
-      contents:[{role:"user",parts:[{text:"Developer request:\n"+question+"\n\nRepository evidence:\n"+context.slice(0,50000)}]}],
+      contents:[{role:"user",parts:[{text:"Developer request:\n"+question+"\n\nFocus file (if supplied): "+focusPath+"\n\nRepository evidence:\n"+context.slice(0,65000)}]}],
       generationConfig:{maxOutputTokens:4000,responseMimeType:"application/json"},
     };
 
