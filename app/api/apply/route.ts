@@ -16,6 +16,7 @@ export async function POST(req:Request){
    if(!path||path.startsWith("/")||path.includes("..")) throw Error(`Unsafe patch path: ${path}`);
    const cr=await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`,{headers:h});
    let existing:any=null; if(cr.ok) existing=await cr.json();
+   if(existing && typeof f.oldText!=="string") throw Error(`Missing oldText verification for ${path}.`);
    if(existing && typeof f.oldText==="string"){
     const raw=await fetch(existing.download_url,{headers:h});
     if(!raw.ok) throw Error(`Could not verify current content for ${path}.`);
