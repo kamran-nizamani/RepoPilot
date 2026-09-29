@@ -18,7 +18,7 @@ function scorePath(path: string, query: string) {
 
 export async function POST(req: Request) {
   try {
-    const { repoUrl, query = "" } = await req.json();
+    const { repoUrl, query = "", focusPath = "" } = await req.json();
     const m = String(repoUrl || "").match(/^https?:\/\/github\.com\/([^/]+)\/([^/#?]+)(?:[#?].*)?$/i);
     if (!m) return NextResponse.json({ error: "Use a public GitHub repository URL." }, { status: 400 });
 
@@ -40,12 +40,20 @@ export async function POST(req: Request) {
       (x: any) => x.type === "blob" && allowed.test(x.path) && !ignored.test(x.path)
     );
 
+    const requestedPath = String(focusPath || "").replace(/^\/+/, "").replace(/\\/g, "/");
+    const focused = requestedPath ? allFiles.find((f: any) => f.path === requestedPath) : null;
+
     const ranked = allFiles
       .map((f: any) => ({ ...f, score: scorePath(f.path, String(query || "")) }))
       .sort((a: any, b: any) => b.score - a.score || a.path.length - b.path.length)
       .slice(0, 18);
 
-    const snippets = await Promise.all(ranked.map(async (f: any) => {
+    // An explicitly requested file must never be lost to heuristic ranking.
+    const candidates = focused && !ranked.some((f: any) => f.path === focused.path)
+      ? [{ ...focused, score: 1000 }, ...ranked.slice(0, 17)]
+      : ranked;
+
+    const snippets = await Promise.all(candidates.map(async (f: any) => {
       try {
         const path = f.path.split("/").map(encodeURIComponent).join("/");
         const r = await fetch(
@@ -63,6 +71,8 @@ export async function POST(req: Request) {
       repository: `${owner}/${repo}`,
       branch: info.default_branch,
       query: String(query || ""),
+      focusPath: requestedPath || null,
+      focusedFileFound: Boolean(focused),
       files,
       fileCount: files.length,
       scannedFileCount: allFiles.length
