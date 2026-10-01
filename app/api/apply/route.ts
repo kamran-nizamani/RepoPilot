@@ -1,35 +1,150 @@
 import { NextResponse } from "next/server";
 
-export async function POST(req:Request){
- try{
-  const {repo,branch="repopilot/approved-change",base="main",files=[],message="chore: apply RepoPilot approved patch",createPr=true,approved=false}=await req.json();
-  if(approved!==true) return NextResponse.json({error:"Explicit human approval is required before GitHub writes."},{status:403});
-  if(!process.env.GITHUB_TOKEN) return NextResponse.json({error:"GitHub write access is not configured. Add GITHUB_TOKEN server-side before approving changes."},{status:503});
-  if(!repo||!Array.isArray(files)||files.length===0) return NextResponse.json({error:"Approval payload is incomplete."},{status:400});
-  const h={Authorization:`Bearer ${process.env.GITHUB_TOKEN}`,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"};
-  const r=await fetch(`https://api.github.com/repos/${repo}/git/ref/heads/${base}`,{headers:h}); if(!r.ok) throw Error("Base branch could not be read.");
-  const ref=await r.json();
-  const br=await fetch(`https://api.github.com/repos/${repo}/git/refs`,{method:"POST",headers:h,body:JSON.stringify({ref:`refs/heads/${branch}`,sha:ref.object.sha})});
-  if(!br.ok) throw Error("Could not create approval branch.");
-  for(const f of files){
-   const path=String(f.path||"");
-   if(!path||path.startsWith("/")||path.includes("..")) throw Error(`Unsafe patch path: ${path}`);
-   const cr=await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`,{headers:h});
-   let existing:any=null; if(cr.ok) existing=await cr.json();
-   if(existing && typeof f.oldText!=="string") throw Error(`Missing oldText verification for ${path}.`);
-   if(existing && typeof f.oldText==="string"){
-    const raw=await fetch(existing.download_url,{headers:h});
-    if(!raw.ok) throw Error(`Could not verify current content for ${path}.`);
-    const current=await raw.text();
-    if(!current.includes(f.oldText)) throw Error(`Patch is stale or no longer matches ${path}; no write was made for that file.`);
-   }
-   const payload:any={message,content:Buffer.from(String(f.content)).toString("base64"),branch}; if(existing?.sha) payload.sha=existing.sha;
-   const wr=await fetch(`https://api.github.com/repos/${repo}/contents/${path}`,{method:"PUT",headers:h,body:JSON.stringify(payload)});
-   if(!wr.ok) throw Error(`Could not write ${path}.`);
+type PatchFile = { path?: unknown; oldText?: unknown; content?: unknown };
+
+export async function POST(req: Request) {
+  try {
+    const {
+      repo,
+      branch = "repopilot/approved-change",
+      base = "main",
+      files = [],
+      message = "chore: apply RepoPilot approved patch",
+      createPr = true,
+      approved = false,
+    } = await req.json();
+
+    if (approved !== true) {
+      return NextResponse.json(
+        { error: "Explicit human approval is required before GitHub writes." },
+        { status: 403 }
+      );
+    }
+
+    if (!process.env.GITHUB_TOKEN) {
+      return NextResponse.json(
+        { error: "GitHub write access is not configured. Add GITHUB_TOKEN server-side before approving changes." },
+        { status: 503 }
+      );
+    }
+
+    if (!repo || !Array.isArray(files) || files.length === 0) {
+      return NextResponse.json({ error: "Approval payload is incomplete." }, { status: 400 });
+    }
+
+    const h = {
+      Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+    };
+
+    const r = await fetch(
+      `https://api.github.com/repos/${repo}/git/ref/heads/${encodeURIComponent(base)}`,
+      { headers: h }
+    );
+    if (!r.ok) throw Error("Base branch could not be read.");
+    const ref = await r.json();
+
+    const br = await fetch(`https://api.github.com/repos/${repo}/git/refs`, {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: ref.object.sha }),
+    });
+    if (!br.ok) throw Error("Could not create approval branch.");
+
+    for (const rawFile of files as PatchFile[]) {
+      const path = String(rawFile.path || "");
+      if (!path || path.startsWith("/") || path.includes("..")) {
+        throw Error(`Unsafe patch path: ${path}`);
+      }
+
+      const contentUrl = `https://api.github.com/repos/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`;
+      const cr = await fetch(contentUrl, { headers: h });
+
+      let existing: any = null;
+      if (cr.ok) {
+        existing = await cr.json();
+      } else if (cr.status !== 404) {
+        throw Error(`Could not read current content for ${path}.`);
+      }
+
+      const proposedContent = String(rawFile.content ?? "");
+
+      if (existing) {
+        if (typeof rawFile.oldText !== "string") {
+          throw Error(`Missing oldText verification for ${path}.`);
+        }
+
+        const raw = await fetch(existing.download_url, { headers: h });
+        if (!raw.ok) throw Error(`Could not verify current content for ${path}.`);
+
+        const current = await raw.text();
+        const oldText = rawFile.oldText;
+
+        if (!current.includes(oldText)) {
+          throw Error(
+            `Patch is stale or no longer matches ${path}; no write was made for that file.`
+          );
+        }
+
+        // Apply the proposed replacement to the complete current file.
+        // Never replace an existing file with only the patch fragment.
+        const updatedContent = current.replace(oldText, proposedContent);
+
+        const payload = {
+          message,
+          content: Buffer.from(updatedContent, "utf8").toString("base64"),
+          branch,
+          sha: existing.sha,
+        };
+
+        const wr = await fetch(
+          `https://api.github.com/repos/${repo}/contents/${path}`,
+          { method: "PUT", headers: h, body: JSON.stringify(payload) }
+        );
+        if (!wr.ok) throw Error(`Could not write ${path}.`);
+      } else {
+        // For a genuinely new file, the proposal content is the complete file.
+        if (typeof rawFile.oldText === "string" && rawFile.oldText.length > 0) {
+          throw Error(`Cannot apply oldText patch to missing file ${path}.`);
+        }
+
+        const payload = {
+          message,
+          content: Buffer.from(proposedContent, "utf8").toString("base64"),
+          branch,
+        };
+
+        const wr = await fetch(
+          `https://api.github.com/repos/${repo}/contents/${path}`,
+          { method: "PUT", headers: h, body: JSON.stringify(payload) }
+        );
+        if (!wr.ok) throw Error(`Could not write ${path}.`);
+      }
+    }
+
+    if (!createPr) return NextResponse.json({ branch });
+
+    const pr = await fetch(`https://api.github.com/repos/${repo}/pulls`, {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({
+        title: message,
+        head: branch,
+        base,
+        body: "Generated by RepoPilot after explicit human approval. Please review before merging.",
+      }),
+    });
+
+    if (!pr.ok) throw Error("Changes committed, but PR creation failed.");
+
+    const p = await pr.json();
+    return NextResponse.json({ branch, prUrl: p.html_url, prNumber: p.number });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Approved change failed" },
+      { status: 500 }
+    );
   }
-  if(!createPr) return NextResponse.json({branch});
-  const pr=await fetch(`https://api.github.com/repos/${repo}/pulls`,{method:"POST",headers:h,body:JSON.stringify({title:message,head:branch,base,body:"Generated by RepoPilot after explicit human approval. Please review before merging."})});
-  if(!pr.ok) throw Error("Changes committed, but PR creation failed.");
-  const p=await pr.json(); return NextResponse.json({branch,prUrl:p.html_url,prNumber:p.number});
- }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Approved change failed"},{status:500});}
 }
