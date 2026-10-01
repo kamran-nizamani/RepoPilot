@@ -157,13 +157,17 @@ Do not modify files yet.
 - [x] Pull request creation
 - [x] Stale-patch verification
 - [x] Web dashboard
+- [x] Lightweight static security/dependency scanning
 - [ ] Automated test execution in an isolated sandbox
+- [x] Ranked source retrieval with explicit focus-file support
 - [ ] AST-aware code indexing
 - [ ] Semantic/vector retrieval
 - [ ] Dependency graph analysis
-- [ ] Security/CWE analysis
+- [x] Security signal analysis (credential/eval/shell/SQL patterns)
+- [ ] Full CWE/advisory integration
 - [ ] Multi-provider AI support
-- [ ] Persistent run history
+- [x] Privacy-first local run history
+- [ ] Server-side persistent run history
 - [ ] MCP integration
 - [ ] Repository-specific project memory
 
